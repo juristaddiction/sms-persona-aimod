@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name_placeholder">Messages</string>
+    <string name="translation_help">Les traductions sont réalisées par la communauté et peuvent contenir des erreurs. Si vous trouvez une traduction inexacte ou manquante, veuillez ouvrir un nouveau ticket sur GitHub à l\'adresse github.com/an1ndra/Messages pour aider à les améliorer.</string>
+</resources>
