@@ -17,7 +17,7 @@ object ContactVCard {
     const val OPENCONTACTS_IMPORT_ACTIVITY =
         "opencontacts.open.com.opencontacts.activities.ImportVcardActivity"
 
-    /** Matches OpenContacts' ImportVcardActivity intent filter (text/* on content URIs). */
+    /** Matches OpenContacts' ImportVcardActivity intent filter (text wildcard on content URIs). */
     const val VCARD_MIME_TYPE = "text/vcard"
 
     /**

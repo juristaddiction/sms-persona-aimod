@@ -1021,7 +1021,7 @@ class Repository(private val context: Context) {
 
     fun storedNameFor(address: String): String? {
         val target = canonical(address).ifEmpty { address }
-        db.readableDatabase.rawQuery(
+        return db.readableDatabase.rawQuery(
             "SELECT name FROM conversations WHERE address=?",
             arrayOf(target)
         ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
@@ -1044,7 +1044,7 @@ class Repository(private val context: Context) {
         val out = mutableSetOf<Long>()
         db.readableDatabase.rawQuery(
             "SELECT group_id FROM conversation_group_members WHERE conversation_id=?",
-            arrayOf(conversationId)
+            arrayOf(conversationId.toString())
         ).use { c -> while (c.moveToNext()) out.add(c.getLong(0)) }
         out
     }
@@ -1053,7 +1053,7 @@ class Repository(private val context: Context) {
         val out = mutableSetOf<Long>()
         db.readableDatabase.rawQuery(
             "SELECT conversation_id FROM conversation_group_members WHERE group_id=?",
-            arrayOf(groupId)
+            arrayOf(groupId.toString())
         ).use { c -> while (c.moveToNext()) out.add(c.getLong(0)) }
         out
     }
@@ -1647,13 +1647,13 @@ class Repository(private val context: Context) {
             val rows = mutableListOf<Pair<String, Long>>()
             context.contentResolver.query(
                 collection,
-                arrayOf(MediaStore.Files._ID, MediaStore.Files.DATE_ADDED),
+                arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DATE_ADDED),
                 "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
                 arrayOf("messages_auto_%.enc"),
-                "${MediaStore.Files.DATE_ADDED} DESC"
+                "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
             )?.use { c ->
-                val idCol = c.getColumnIndexOrThrow(MediaStore.Files._ID)
-                val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.DATE_ADDED)
+                val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+                val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_ADDED)
                 while (c.moveToNext()) {
                     val uri = ContentUris.withAppendedId(collection, c.getLong(idCol)).toString()
                     rows += uri to c.getLong(dateCol)

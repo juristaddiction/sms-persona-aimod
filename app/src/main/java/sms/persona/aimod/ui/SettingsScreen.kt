@@ -1095,6 +1095,7 @@ private fun accentName(seed: Int, context: android.content.Context): String {
         ?: context.getString(R.string.settings_accent_default)
 }
 
+@Composable
 private fun ImportRadioGroup(
     options: List<Pair<String, String>>,
     selectedIndex: Int,

@@ -74,6 +74,7 @@ import sms.persona.aimod.sms.SmsSender
 import sms.persona.aimod.ui.ChatScreen
 import sms.persona.aimod.ui.ConversationsScreen
 import sms.persona.aimod.ui.ContactDetailsScreen
+import sms.persona.aimod.ui.GroupsScreen
 import sms.persona.aimod.ui.NewChatScreen
 import sms.persona.aimod.ui.SettingsScreen
 import sms.persona.aimod.ui.AdvancedSettingsScreen
