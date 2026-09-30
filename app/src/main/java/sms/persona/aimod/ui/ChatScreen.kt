@@ -1,9 +1,9 @@
 package sms.persona.aimod.ui
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
 import android.widget.Toast
 import android.text.SpannableStringBuilder
@@ -161,6 +161,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sms.persona.aimod.data.ChatExport
+import sms.persona.aimod.data.ContactVCard
 import sms.persona.aimod.data.DownloadsStore
 
 import androidx.compose.runtime.mutableStateListOf
@@ -822,6 +823,25 @@ fun ChatScreen(
                 onOpenDetails = onOpenDetails,
                 onExport = { showExportDialog = true },
                 onColorPick = { showColorPicker = true },
+                onSaveContact = {
+                    val address = convo?.address.orEmpty()
+                    if (address.isBlank()) {
+                        Toast.makeText(context, context.getString(R.string.chat_no_number), Toast.LENGTH_SHORT).show()
+                    } else {
+                        val name = convo?.let { if (it.name != it.address) it.name else it.display }.orEmpty()
+                        try {
+                            val file = ContactVCard.writeToCache(
+                                context,
+                                ContactVCard.build(name, address),
+                                ContactVCard.fileNameFor(name)
+                            )
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                            context.startActivity(ContactVCard.viewIntent(uri))
+                        } catch (e: ActivityNotFoundException) {
+                            Toast.makeText(context, context.getString(R.string.chat_opencontacts_missing), Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
                 onMenuToggle = { menuOpen = true },
                 onMenuDismiss = { menuOpen = false },
                 onSimSelect = { simId, label ->
@@ -1349,7 +1369,8 @@ private fun ChatTopBar(
     onUnblock: () -> Unit,
     onAddPeople: () -> Unit,
     onExport: () -> Unit,
-    onColorPick: () -> Unit
+    onColorPick: () -> Unit,
+    onSaveContact: () -> Unit
 ) {
     val context = LocalContext.current
     TopAppBar(
@@ -1426,6 +1447,10 @@ private fun ChatTopBar(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_details)) },
                         onClick = { onMenuDismiss(); onOpenDetails() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_save_contact)) },
+                        onClick = { onMenuDismiss(); onSaveContact() }
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.export_chat)) },
