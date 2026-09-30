@@ -26,6 +26,70 @@ import sms.persona.aimod.data.SettingsStore
  * UI code must reference roles via MaterialTheme.colorScheme — never hardcode.
  */
 
+/** User-pickable accent seeds. All raw color values in the app live here. */
+val AccentSeeds = listOf(
+    "Blue" to 0xFF0B57D0.toInt(),
+    "Green" to 0xFF146C2E.toInt(),
+    "Teal" to 0xFF006A6A.toInt(),
+    "Purple" to 0xFF6D4AFF.toInt(),
+    "Pink" to 0xFFB4005E.toInt(),
+    "Orange" to 0xFFB34A00.toInt(),
+    "Red" to 0xFFBA1A1A.toInt(),
+    "Brown" to 0xFF7A4A1F.toInt()
+)
+
+/** Default accent (matches the base scheme seed). */
+const val DefaultAccent = 0xFF0B57D0.toInt()
+
+private fun mix(a: Color, b: Color, t: Float): Color =
+    Color(
+        red = a.red + (b.red - a.red) * t,
+        green = a.green + (b.green - a.green) * t,
+        blue = a.blue + (b.blue - a.blue) * t,
+        alpha = a.alpha + (b.alpha - a.alpha) * t
+    )
+
+/**
+ * Re-seeds the primary/secondary/tertiary families of [this] scheme from an
+ * ARGB [seed]. Everything else (surfaces, error, outlines) stays as curated.
+ */
+fun ColorScheme.withAccent(seedArgb: Int, dark: Boolean): ColorScheme {
+    val seed = Color(seedArgb)
+    val white = Color.White
+    val black = Color.Black
+    return if (!dark) {
+        copy(
+            primary = seed,
+            onPrimary = if (seed.luminance() > 0.55f) black else white,
+            primaryContainer = mix(seed, white, 0.84f),
+            onPrimaryContainer = mix(seed, black, 0.72f),
+            secondary = mix(seed, black, 0.18f),
+            onSecondary = white,
+            secondaryContainer = mix(seed, white, 0.9f),
+            onSecondaryContainer = mix(seed, black, 0.62f),
+            tertiary = mix(seed, black, 0.32f),
+            onTertiary = white,
+            tertiaryContainer = mix(seed, white, 0.86f),
+            onTertiaryContainer = mix(seed, black, 0.66f)
+        )
+    } else {
+        copy(
+            primary = mix(seed, white, 0.28f),
+            onPrimary = mix(seed, black, 0.82f),
+            primaryContainer = mix(seed, black, 0.7f),
+            onPrimaryContainer = mix(seed, white, 0.86f),
+            secondary = mix(seed, white, 0.2f),
+            onSecondary = mix(seed, black, 0.8f),
+            secondaryContainer = mix(seed, black, 0.72f),
+            onSecondaryContainer = mix(seed, white, 0.82f),
+            tertiary = mix(seed, white, 0.12f),
+            onTertiary = mix(seed, black, 0.82f),
+            tertiaryContainer = mix(seed, black, 0.68f),
+            onTertiaryContainer = mix(seed, white, 0.84f)
+        )
+    }
+}
+
 // ────────────────────────── Light scheme (seed #0B57D0) ─────────────────────────
 private val LightColors = lightColorScheme(
     // Primary
@@ -208,6 +272,7 @@ fun MessagesTheme(
     mode: String = "system",   // system | light | dark
     font: String = SettingsStore.FONT_SYSTEM,
     a11y: A11yOptions = A11yOptions.DISABLED,
+    accent: Int = 0,           // ARGB seed; 0 = default
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (mode) {
@@ -230,12 +295,14 @@ fun MessagesTheme(
         messagesTypography(AppFonts.familyFor(font), bold = a11y.boldEnabled)
     }
 
-    val colorScheme = when {
+    val baseScheme = when {
         a11y.highContrastEnabled && darkTheme -> DarkHighContrastColors
         a11y.highContrastEnabled -> LightHighContrastColors
         darkTheme -> DarkColors
         else -> LightColors
     }
+    val colorScheme =
+        if (accent != 0) baseScheme.withAccent(accent, darkTheme) else baseScheme
 
     // App text scale stacks on top of the system font scale.
     val systemDensity = LocalDensity.current

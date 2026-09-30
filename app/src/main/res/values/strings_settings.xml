@@ -124,4 +124,6 @@
     <string name="settings_auto_backup_freq_title">Backup frequency</string>
     <string name="settings_auto_backup_daily">Daily</string>
     <string name="settings_auto_backup_weekly">Weekly</string>
+    <string name="settings_accent_title">Accent color</string>
+    <string name="settings_accent_default">Default</string>
 </resources>

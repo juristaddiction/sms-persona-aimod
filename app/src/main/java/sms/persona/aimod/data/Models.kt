@@ -22,7 +22,9 @@ data class Conversation(
     val draftDate: Long = 0,
     val deletedAt: Long = 0,
     val display: String = address,
-    val deletedReason: String = TrashReason.MANUAL
+    val deletedReason: String = TrashReason.MANUAL,
+    /** ARGB accent override for this conversation; 0 = follow the app accent. */
+    val color: Int = 0
 )
 
 data class Message(

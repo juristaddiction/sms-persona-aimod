@@ -73,6 +73,7 @@ class SettingsStore(context: Context) {
         const val KEY_BACKUP_TREE_URI = "backup_tree_uri"
         const val KEY_AUTO_BACKUP = "auto_backup_enabled"
         const val KEY_AUTO_BACKUP_DAYS = "auto_backup_interval_days"
+        const val KEY_ACCENT_SEED = "accent_seed"
         const val KEY_A11Y_ENABLED = "a11y_enabled"
         const val KEY_A11Y_FONT_SCALE = "a11y_font_scale"
         const val KEY_A11Y_BOLD = "a11y_bold"
@@ -320,6 +321,11 @@ class SettingsStore(context: Context) {
     var autoBackupIntervalDays: Int
         get() = prefs.getInt(KEY_AUTO_BACKUP_DAYS, 1)
         set(v) { prefs.edit().putInt(KEY_AUTO_BACKUP_DAYS, v).apply(); _revision.value++ }
+
+    /** App-wide accent color as ARGB int; 0 = default blue. */
+    var accentSeed: Int
+        get() = prefs.getInt(KEY_ACCENT_SEED, 0)
+        set(v) { prefs.edit().putInt(KEY_ACCENT_SEED, v).apply(); _revision.value++ }
 
     /** True when [body] contains any blocked keyword (case-insensitive). */
     fun isKeywordBlocked(body: String): Boolean = KeywordFilter.isBlocked(body, blockedKeywords)

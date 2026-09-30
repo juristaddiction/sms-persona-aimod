@@ -27,7 +27,7 @@ private const val DB_NAME = "messages.db"
 enum class BackupFormat { PIN, LEGACY }
 enum class ImportMode { REPLACE, MERGE }
 
-private const val DB_VERSION = 22
+private const val DB_VERSION = 23
 private const val PREFS_NAME = "messages_schema"
 private const val PREF_HEAL_APPLIED = "heal_v1_applied"
 
@@ -53,7 +53,8 @@ class Db(context: Context) :
                 draft TEXT NOT NULL DEFAULT '',
                 draft_date INTEGER NOT NULL DEFAULT 0,
                 deleted_at INTEGER NOT NULL DEFAULT 0,
-                deleted_reason TEXT NOT NULL DEFAULT 'manual')"""
+                deleted_reason TEXT NOT NULL DEFAULT 'manual',
+                color INTEGER NOT NULL DEFAULT 0)"""
         )
         db.execSQL(
             """CREATE TABLE messages(
@@ -241,6 +242,9 @@ class Db(context: Context) :
                     PRIMARY KEY(conversation_id, group_id))"""
             )
         }
+        if (oldVersion < 23) {
+            db.execSQL("ALTER TABLE conversations ADD COLUMN color INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     /** Collapses rows that share a system-provider id (legacy double-imports,
@@ -373,7 +377,7 @@ class Repository(private val context: Context) {
         db.readableDatabase.rawQuery(
             """SELECT c.id,c.address,c.name,c.snippet,c.timestamp,c.unread_count,c.last_is_me,
                c.archived,c.blocked,c.pinned,c.draft,c.draft_date,c.deleted_at,
-               COALESCE(p.display_destination, c.address)
+               COALESCE(p.display_destination, c.address),c.color
                FROM conversations c
                LEFT JOIN participants p ON p.normalized_destination = c.address
                WHERE c.deleted_at=0 ORDER BY c.pinned DESC, c.timestamp DESC""",
@@ -395,6 +399,7 @@ class Repository(private val context: Context) {
                         draft = c.getString(10),
                         draftDate = c.getLong(11),
                         deletedAt = c.getLong(12),
+                        color = c.getInt(c.getColumnIndex("color")),
                         display = c.getString(13)
                     )
                 )
@@ -408,7 +413,7 @@ class Repository(private val context: Context) {
         db.readableDatabase.rawQuery(
             """SELECT c.id,c.address,c.name,c.snippet,c.timestamp,c.unread_count,c.last_is_me,
                c.archived,c.pinned,c.draft,c.draft_date,c.deleted_at,
-               COALESCE(p.display_destination, c.address)
+               COALESCE(p.display_destination, c.address),c.color
                FROM conversations c
                LEFT JOIN participants p ON p.normalized_destination = c.address
                WHERE c.id=? AND c.deleted_at=0""",
@@ -428,7 +433,8 @@ class Repository(private val context: Context) {
                     draft = c.getString(9),
                     draftDate = c.getLong(10),
                     deletedAt = c.getLong(11),
-                    display = c.getString(12)
+                    color = c.getInt(c.getColumnIndex("color")),
+                        display = c.getString(12)
                 )
             }
         }
@@ -440,7 +446,7 @@ class Repository(private val context: Context) {
         db.readableDatabase.rawQuery(
             """SELECT c.id,c.address,c.name,c.snippet,c.timestamp,c.unread_count,c.last_is_me,
                c.archived,c.pinned,c.draft,c.draft_date,c.deleted_at,
-               COALESCE(p.display_destination, c.address),c.deleted_reason
+               COALESCE(p.display_destination, c.address),c.deleted_reason,c.color
                FROM conversations c
                LEFT JOIN participants p ON p.normalized_destination = c.address
                WHERE c.deleted_at>0 ORDER BY c.deleted_at DESC""",
@@ -461,6 +467,7 @@ class Repository(private val context: Context) {
                         draft = c.getString(9),
                         draftDate = c.getLong(10),
                         deletedAt = c.getLong(11),
+                        color = c.getInt(c.getColumnIndex("color")),
                         display = c.getString(12),
                         deletedReason = c.getString(13) ?: TrashReason.MANUAL
                     )
@@ -629,7 +636,7 @@ class Repository(private val context: Context) {
         db.readableDatabase.rawQuery(
             """SELECT c.id,c.address,c.name,c.snippet,c.timestamp,c.unread_count,c.last_is_me,
                c.archived,c.pinned,c.draft,c.draft_date,
-               COALESCE(p.display_destination, c.address)
+               COALESCE(p.display_destination, c.address),c.color
                FROM conversations c
                LEFT JOIN participants p ON p.normalized_destination = c.address
                WHERE c.id=? AND c.deleted_at=0""",
@@ -647,7 +654,8 @@ class Repository(private val context: Context) {
                 pinned = c.getInt(8) == 1,
                 draft = c.getString(9),
                 draftDate = c.getLong(10),
-                display = c.getString(11)
+                color = c.getInt(c.getColumnIndex("color")),
+                        display = c.getString(11)
             )
         }
         found
@@ -995,6 +1003,14 @@ class Repository(private val context: Context) {
         notifyChanged()
     }
 
+    fun setConversationColorSuspend(conversationId: Long, color: Int) {
+        db.writableDatabase.execSQL(
+            "UPDATE conversations SET color=? WHERE id=?",
+            arrayOf(color, conversationId)
+        )
+        notifyChanged()
+    }
+
     fun renameConversationSuspend(conversationId: Long, name: String) {
         db.writableDatabase.execSQL(
             "UPDATE conversations SET name=? WHERE id=?",
@@ -1316,7 +1332,7 @@ class Repository(private val context: Context) {
         db.readableDatabase.rawQuery(
             """SELECT c.id,c.address,c.name,c.snippet,c.timestamp,c.unread_count,c.last_is_me,
                c.archived,c.pinned,c.draft,c.draft_date,
-               COALESCE(p.display_destination, c.address)
+               COALESCE(p.display_destination, c.address),c.color
                FROM conversations c
                LEFT JOIN participants p ON p.normalized_destination = c.address
                WHERE c.pinned=1 ORDER BY c.timestamp DESC""",
@@ -1336,6 +1352,7 @@ class Repository(private val context: Context) {
                         pinned = c.getInt(8) == 1,
                         draft = c.getString(9),
                         draftDate = c.getLong(10),
+                        color = c.getInt(c.getColumnIndex("color")),
                         display = c.getString(11)
                     )
                 )

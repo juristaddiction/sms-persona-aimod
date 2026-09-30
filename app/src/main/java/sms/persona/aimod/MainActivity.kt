@@ -513,6 +513,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unpinAll() = scope.launch { repo.unpinAll() }
 
     fun archiveConversation(id: Long) = scope.launch { repo.setArchivedSuspend(id, true) }
+    fun setConversationColor(conversationId: Long, color: Int) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            repo.setConversationColorSuspend(conversationId, color)
+        }
+
     fun renameConversation(id: Long, name: String) =
         scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.renameConversationSuspend(id, name) }
 
@@ -726,6 +731,9 @@ class MainActivity : FragmentActivity() {
             val vm: AppViewModel = viewModel()
             var appUnlocked by remember { mutableStateOf(!appLockEnabled) }
             var lockNotAvailable by remember { mutableStateOf(false) }
+            // Observe the settings revision so a picked app accent re-themes immediately.
+            val settingsRevision by vm.settings.revision.collectAsState()
+            val appAccent = remember(settingsRevision) { vm.settings.accentSeed }
 
             if (appLockEnabled && !appUnlocked) {
                 LaunchedEffect(Unit) {
@@ -764,7 +772,7 @@ class MainActivity : FragmentActivity() {
 
             if (!appUnlocked) {
                 if (lockNotAvailable) {
-                    MessagesTheme(mode = vm.themeMode, font = vm.fontFamily, a11y = vm.a11y) {
+                    MessagesTheme(mode = vm.themeMode, font = vm.fontFamily, a11y = vm.a11y, accent = appAccent) {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
@@ -815,7 +823,7 @@ class MainActivity : FragmentActivity() {
                 return@setContent
             }
 
-            MessagesTheme(mode = vm.themeMode, font = vm.fontFamily, a11y = vm.a11y) {
+            MessagesTheme(mode = vm.themeMode, font = vm.fontFamily, a11y = vm.a11y, accent = appAccent) {
                 var chatId by remember { mutableStateOf(-1L) }
                 var detailsId by remember { mutableStateOf(-1L) }
                 var showDefaultSmsDialog by remember { mutableStateOf(false) }

@@ -65,6 +65,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import sms.persona.aimod.ui.theme.AccentSeeds
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,6 +110,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var showExportAllDialog by remember { mutableStateOf(false) }
     var showAutoBackupFreqDialog by remember { mutableStateOf(false) }
+    var showAccentDialog by remember { mutableStateOf(false) }
 
     val revision by vm.settings.revision.collectAsState()
 
@@ -291,6 +293,11 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_theme_title),
                     subtitle = themeLabel(themeMode, context),
                     onClick = { themeDialog = true }
+                )
+                SettingsRow(
+                    title = stringResource(R.string.settings_accent_title),
+                    subtitle = accentName(vm.settings.accentSeed, context),
+                    onClick = { showAccentDialog = true }
                 )
                 val selectedSub = sims.firstOrNull { it.subscriptionId == vm.settings.simSubscriptionId }
                 val currentSimLabel = if (selectedSub == null) {
@@ -523,6 +530,15 @@ fun SettingsScreen(
                     .padding(bottom = 16.dp)
             )
         }
+    }
+
+    if (showAccentDialog) {
+        AccentPickerDialog(
+            current = vm.settings.accentSeed,
+            title = stringResource(R.string.settings_accent_title),
+            onDismiss = { showAccentDialog = false },
+            onPick = { vm.settings.accentSeed = it; showAccentDialog = false }
+        )
     }
 
     if (themeDialog) {
@@ -1073,6 +1089,12 @@ private fun notificationSoundLabel(value: String, options: List<Pair<String, Str
  * confirm button does.
  */
 @Composable
+private fun accentName(seed: Int, context: android.content.Context): String {
+    if (seed == 0) return context.getString(R.string.settings_accent_default)
+    return AccentSeeds.firstOrNull { it.second == seed }?.first
+        ?: context.getString(R.string.settings_accent_default)
+}
+
 private fun ImportRadioGroup(
     options: List<Pair<String, String>>,
     selectedIndex: Int,

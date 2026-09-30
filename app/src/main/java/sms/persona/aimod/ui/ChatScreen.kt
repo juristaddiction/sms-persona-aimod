@@ -142,6 +142,7 @@ import sms.persona.aimod.data.MessageLockCrypto
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import sms.persona.aimod.ui.theme.LocalReduceMotion
+import sms.persona.aimod.ui.theme.MessagesTheme
 import sms.persona.aimod.ui.theme.Motion
 import sms.persona.aimod.ui.theme.motionSpring
 import sms.persona.aimod.ui.theme.motionTween
@@ -439,6 +440,7 @@ fun ChatScreen(
     var showEmoji by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
     var attachSheet by remember { mutableStateOf(false) }
 
     val selectedMessageIds = remember { mutableStateListOf<Long>() }
@@ -748,6 +750,16 @@ fun ChatScreen(
         }
     }
 
+    val settingsRevision by vm.settings.revision.collectAsState()
+    val chatAccent = remember(convo?.color, settingsRevision) {
+        convo?.color?.takeIf { it != 0 } ?: vm.settings.accentSeed
+    }
+    MessagesTheme(
+        mode = vm.themeMode,
+        font = vm.fontFamily,
+        a11y = vm.a11y,
+        accent = chatAccent
+    ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -809,6 +821,7 @@ fun ChatScreen(
                 onBack = ::leaveChat,
                 onOpenDetails = onOpenDetails,
                 onExport = { showExportDialog = true },
+                onColorPick = { showColorPicker = true },
                 onMenuToggle = { menuOpen = true },
                 onMenuDismiss = { menuOpen = false },
                 onSimSelect = { simId, label ->
@@ -1028,6 +1041,7 @@ fun ChatScreen(
 
         }
     }
+    }
 
     if (attachSheet) {
         AttachSheet(
@@ -1199,6 +1213,17 @@ fun ChatScreen(
             onDismiss = { textCopyMessage = null }
         )
     }
+    if (showColorPicker) {
+        AccentPickerDialog(
+            current = convo?.color ?: 0,
+            title = stringResource(R.string.chat_color),
+            onDismiss = { showColorPicker = false },
+            onPick = {
+                vm.setConversationColor(conversationId, it)
+                showColorPicker = false
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1323,7 +1348,8 @@ private fun ChatTopBar(
     onBlock: () -> Unit,
     onUnblock: () -> Unit,
     onAddPeople: () -> Unit,
-    onExport: () -> Unit
+    onExport: () -> Unit,
+    onColorPick: () -> Unit
 ) {
     val context = LocalContext.current
     TopAppBar(
@@ -1404,6 +1430,10 @@ private fun ChatTopBar(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.export_chat)) },
                         onClick = { onMenuDismiss(); onExport() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_color)) },
+                        onClick = { onMenuDismiss(); onColorPick() }
                     )
                     if (SimSwitcher.shouldShowSwitch(sims.size)) {
                         sims.sortedBy { it.slotIndex }.forEach { sub ->
