@@ -159,6 +159,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import sms.persona.aimod.data.ChatExport
+import sms.persona.aimod.data.DownloadsStore
 
 import androidx.compose.runtime.mutableStateListOf
 
@@ -436,6 +438,7 @@ fun ChatScreen(
     var draftLoaded by remember { mutableStateOf(false) }
     var showEmoji by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
     var attachSheet by remember { mutableStateOf(false) }
 
     val selectedMessageIds = remember { mutableStateListOf<Long>() }
@@ -805,6 +808,7 @@ fun ChatScreen(
                 draftsEnabled = vm.settings.draftsEnabled,
                 onBack = ::leaveChat,
                 onOpenDetails = onOpenDetails,
+                onExport = { showExportDialog = true },
                 onMenuToggle = { menuOpen = true },
                 onMenuDismiss = { menuOpen = false },
                 onSimSelect = { simId, label ->
@@ -1078,6 +1082,45 @@ fun ChatScreen(
         )
     }
 
+    if (showExportDialog) {
+        ExportFormatDialog(
+            title = stringResource(R.string.export_chat),
+            onDismiss = { showExportDialog = false },
+            onPick = { asPdf ->
+                showExportDialog = false
+                scope.launch(Dispatchers.IO) {
+                    val data = vm.exportChatData(conversationId)
+                    val ok = if (data == null) {
+                        false
+                    } else {
+                        val bytes = if (asPdf) {
+                            ChatExport.buildPdf(context, listOf(data))
+                        } else {
+                            ChatExport.buildText(listOf(data)).toByteArray(Charsets.UTF_8)
+                        }
+                        val name = ChatExport.fileNameFor(
+                            data.first,
+                            if (asPdf) "pdf" else "txt"
+                        )
+                        DownloadsStore.write(
+                            context,
+                            name,
+                            if (asPdf) "application/pdf" else "text/plain",
+                            bytes
+                        )
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            context.getString(if (ok) R.string.export_saved else R.string.export_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        )
+    }
+
     if (showPermanentDeleteDialog) {
         PermanentDeleteConfirmDialog(
             onConfirm = { dontShowAgain ->
@@ -1279,7 +1322,8 @@ private fun ChatTopBar(
     onDelete: () -> Unit,
     onBlock: () -> Unit,
     onUnblock: () -> Unit,
-    onAddPeople: () -> Unit
+    onAddPeople: () -> Unit,
+    onExport: () -> Unit
 ) {
     val context = LocalContext.current
     TopAppBar(
@@ -1356,6 +1400,10 @@ private fun ChatTopBar(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_details)) },
                         onClick = { onMenuDismiss(); onOpenDetails() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.export_chat)) },
+                        onClick = { onMenuDismiss(); onExport() }
                     )
                     if (SimSwitcher.shouldShowSwitch(sims.size)) {
                         sims.sortedBy { it.slotIndex }.forEach { sub ->

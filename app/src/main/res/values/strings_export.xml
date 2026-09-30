@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="export_chat">Export chat</string>
+    <string name="export_format_title">Choose export format</string>
+    <string name="export_txt">Text (.txt)</string>
+    <string name="export_pdf">PDF (.pdf)</string>
+    <string name="export_saved">Export saved to Downloads</string>
+    <string name="export_failed">Export failed</string>
+    <string name="export_all_title">Export all conversations</string>
+    <string name="export_all_subtitle">Save every conversation as text or PDF</string>
+</resources>

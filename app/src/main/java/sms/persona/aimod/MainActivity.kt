@@ -88,6 +88,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -241,6 +242,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun messages(conversationId: Long, limit: Int = Int.MAX_VALUE, offset: Int = 0): Flow<List<Message>> =
         repo.messages(conversationId, limit, offset)
+
+    suspend fun exportChatData(conversationId: Long): Pair<Conversation, List<Message>>? {
+        val convo = repo.conversationByIdSuspend(conversationId) ?: return null
+        return convo to repo.messages(conversationId).first()
+    }
+
+    suspend fun exportAllData(): List<Pair<Conversation, List<Message>>> {
+        val convos = repo.conversations().first()
+            .filter { !it.archived && !it.blocked }
+        return convos.map { it to repo.messages(it.id).first() }
+    }
 
     fun messageCount(conversationId: Long): Int = repo.messageCount(conversationId)
 

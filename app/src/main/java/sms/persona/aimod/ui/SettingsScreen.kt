@@ -5,6 +5,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import sms.persona.aimod.data.ChatExport
+import sms.persona.aimod.data.DownloadsStore
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +63,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,6 +105,8 @@ fun SettingsScreen(
     BackHandler(onBack = onBack)
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showExportAllDialog by remember { mutableStateOf(false) }
 
     val revision by vm.settings.revision.collectAsState()
 
@@ -427,6 +435,11 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_import_subtitle),
                     onClick = { importSourceDialog = true }
                 )
+                SettingsRow(
+                    title = stringResource(R.string.export_all_title),
+                    subtitle = stringResource(R.string.export_all_subtitle),
+                    onClick = { showExportAllDialog = true }
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -659,6 +672,41 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { delayDialog = false }) { Text(stringResource(R.string.common_cancel)) }
+            }
+        )
+    }
+
+    if (showExportAllDialog) {
+        ExportFormatDialog(
+            title = stringResource(R.string.export_all_title),
+            onDismiss = { showExportAllDialog = false },
+            onPick = { asPdf ->
+                showExportAllDialog = false
+                scope.launch(Dispatchers.IO) {
+                    val chats = vm.exportAllData()
+                    val ok = if (chats.isEmpty()) {
+                        false
+                    } else {
+                        val bytes = if (asPdf) {
+                            ChatExport.buildPdf(context, chats)
+                        } else {
+                            ChatExport.buildText(chats).toByteArray(Charsets.UTF_8)
+                        }
+                        DownloadsStore.write(
+                            context,
+                            ChatExport.fileNameFor(null, if (asPdf) "pdf" else "txt"),
+                            if (asPdf) "application/pdf" else "text/plain",
+                            bytes
+                        )
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            context.getString(if (ok) R.string.export_saved else R.string.export_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         )
     }
