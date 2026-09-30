@@ -17,8 +17,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # NOTE: android-actions/setup-android was removed: it tries to install
+      # the long-removed 'tools' SDK package and fails. The ubuntu-latest
+      # runner already ships an Android SDK (ANDROID_HOME is preset).
 
       - name: Restore release keystore
         run: |
