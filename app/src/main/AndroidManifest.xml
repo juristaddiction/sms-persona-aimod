@@ -71,7 +71,7 @@
             android:name=".sms.ScheduledMessageSender"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.anindra.messages.SCHEDULED_SEND" />
+                <action android:name="sms.persona.aimod.SCHEDULED_SEND" />
             </intent-filter>
         </receiver>
 
@@ -79,7 +79,7 @@
             android:name=".sms.QuickReplyReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.anindra.messages.QUICK_REPLY" />
+                <action android:name="sms.persona.aimod.QUICK_REPLY" />
             </intent-filter>
         </receiver>
 
@@ -87,7 +87,7 @@
             android:name=".sms.MarkReadReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.anindra.messages.MARK_READ" />
+                <action android:name="sms.persona.aimod.MARK_READ" />
             </intent-filter>
         </receiver>
 
@@ -108,9 +108,9 @@
             android:name=".sms.SmsStatusReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.anindra.messages.SMS_SENT" />
-                <action android:name="com.anindra.messages.SMS_DELIVERED" />
-                <action android:name="com.anindra.messages.MMS_SENT" />
+                <action android:name="sms.persona.aimod.SMS_SENT" />
+                <action android:name="sms.persona.aimod.SMS_DELIVERED" />
+                <action android:name="sms.persona.aimod.MMS_SENT" />
             </intent-filter>
         </receiver>
 
@@ -128,7 +128,7 @@
             android:name=".sms.MmsDownloadReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.anindra.messages.MMS_DOWNLOAD_COMPLETE" />
+                <action android:name="sms.persona.aimod.MMS_DOWNLOAD_COMPLETE" />
             </intent-filter>
         </receiver>
 

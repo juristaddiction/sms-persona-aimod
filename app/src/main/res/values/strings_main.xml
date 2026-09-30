@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Messages</string>
+    <string name="app_name">SMS.persona.aiMod</string>
 
     <!-- App lock & permissions -->
     <string name="lock_title">Authenticate to access your messages</string>

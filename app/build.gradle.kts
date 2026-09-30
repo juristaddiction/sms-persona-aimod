@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.anindra.messages"
+    namespace = "sms.persona.aimod"
     compileSdk = 36
 
     dependenciesInfo {
@@ -13,7 +13,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.anindra.messages"
+        applicationId = "sms.persona.aimod"
         minSdk = 29
         targetSdk = 36
         versionCode = 30
