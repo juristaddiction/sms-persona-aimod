@@ -501,6 +501,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unpinAll() = scope.launch { repo.unpinAll() }
 
     fun archiveConversation(id: Long) = scope.launch { repo.setArchivedSuspend(id, true) }
+    fun renameConversation(id: Long, name: String) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.renameConversationSuspend(id, name) }
 
     fun unarchiveConversation(id: Long) = scope.launch { repo.setArchivedSuspend(id, false) }
 
@@ -989,7 +991,6 @@ class MainActivity : FragmentActivity() {
         val now = System.currentTimeMillis()
         if (now - lastResumeTime > 5 * 60_000L) {
             repo.syncFromSystem()
-            repo.refreshContactNames()
             lastResumeTime = now
         }
         // Catch MMS whose WAP push was missed (e.g. the app was not the default

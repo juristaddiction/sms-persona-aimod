@@ -761,6 +761,7 @@ private fun ConversationRow(
     ).text
     val a11yLabel = A11y.describe(
         senderLabel,
+        if (convo.name != convo.address) convo.display else null,
         previewLabel,
         formatListTime(convo.timestamp, now, context),
         if (convo.unreadCount > 0) context.getString(R.string.access_unread, convo.unreadCount) else null,
@@ -822,6 +823,15 @@ private fun ConversationRow(
                         Spacer(Modifier.width(4.dp))
                         WorkProfileBadge()
                     }
+                }
+                if (convo.name != convo.address) {
+                    Text(
+                        text = BidiText.ltr(convo.display),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
                 Spacer(Modifier.height(2.dp))
                 if (hasDraft) {

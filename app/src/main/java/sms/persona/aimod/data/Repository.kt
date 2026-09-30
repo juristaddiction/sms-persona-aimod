@@ -574,7 +574,7 @@ class Repository(private val context: Context) {
         if (convoId == -1L) {
             val cv = ContentValues().apply {
                 put("address", target)
-                put("name", displayName ?: contactNameFor(target) ?: target)
+                put("name", displayName ?: target)
             }
             convoId = db.writableDatabase.insert("conversations", null, cv)
             upsertParticipant(db.writableDatabase, target, subId)
@@ -963,6 +963,22 @@ class Repository(private val context: Context) {
             arrayOf(if (archived) 1 else 0, conversationId)
         )
         notifyChanged()
+    }
+
+    fun renameConversationSuspend(conversationId: Long, name: String) {
+        db.writableDatabase.execSQL(
+            "UPDATE conversations SET name=? WHERE id=?",
+            arrayOf(name, conversationId)
+        )
+        notifyChanged()
+    }
+
+    fun storedNameFor(address: String): String? {
+        val target = canonical(address).ifEmpty { address }
+        db.readableDatabase.rawQuery(
+            "SELECT name FROM conversations WHERE address=?",
+            arrayOf(target)
+        ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
     }
 
     fun markAllReadSuspend() {
@@ -1484,7 +1500,7 @@ class Repository(private val context: Context) {
                 val cid = matchConversationId(database, address) ?: database.insertOrThrow(
                     "conversations", null, ContentValues().apply {
                         put("address", address)
-                        put("name", contactNameFor(address) ?: address)
+                        put("name", address)
                     }
                 )
                 val image = msg.imageBytes
@@ -1863,96 +1879,6 @@ class Repository(private val context: Context) {
         found
     }
 
-    private val contactCache = HashMap<String, Pair<String?, Long>>()
-    private val CONTACT_CACHE_TTL = 5 * 60 * 1000L
-
-    fun contactNameFor(address: String): String? {
-        val now = System.currentTimeMillis()
-        contactCache[address]?.let { (name, ts) ->
-            if (now - ts < CONTACT_CACHE_TTL) return name
-        }
-        val resolved = lookupContactName(address)
-        contactCache[address] = resolved to now
-        return resolved
-    }
-
-    private fun lookupContactName(address: String): String? {
-        if (address.isBlank()) return null
-        queryPhoneLookup(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, address, null)
-            ?.let { return it }
-        return try {
-            val dirs = context.contentResolver.query(
-                android.provider.ContactsContract.Directory.ENTERPRISE_CONTENT_URI,
-                arrayOf(android.provider.ContactsContract.Directory._ID),
-                null, null, null
-            )?.use { c ->
-                val ids = mutableListOf<Long>()
-                while (c.moveToNext()) ids.add(c.getLong(0))
-                ids
-            } ?: emptyList()
-            dirs.filter { it != android.provider.ContactsContract.Directory.DEFAULT }
-                .firstNotNullOfOrNull { dir ->
-                    queryPhoneLookup(
-                        android.provider.ContactsContract.PhoneLookup.ENTERPRISE_CONTENT_FILTER_URI,
-                        address, dir
-                    )
-                }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun queryPhoneLookup(base: android.net.Uri, address: String, directoryId: Long?): String? {
-        return try {
-            var uri = android.net.Uri.withAppendedPath(base, android.net.Uri.encode(address))
-            if (directoryId != null) {
-                uri = uri.buildUpon().appendQueryParameter("directory", directoryId.toString()).build()
-            }
-            context.contentResolver.query(
-                uri,
-                arrayOf(android.provider.ContactsContract.PhoneLookup.DISPLAY_NAME),
-                null, null, null
-            )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    /** Re-resolves display names from ContactsContract for all conversations. */
-    fun refreshContactNames() {
-        Thread {
-            try {
-                val ids = mutableListOf<Long>()
-                val addresses = mutableListOf<String>()
-                db.readableDatabase.rawQuery(
-                    "SELECT id,address FROM conversations", null
-                ).use { c ->
-                    while (c.moveToNext()) {
-                        ids.add(c.getLong(0))
-                        addresses.add(c.getString(1))
-                    }
-                }
-                // Resolve every contact (cached) up front, then issue a single
-                // CASE-based UPDATE instead of N+1 SELECT/UPDATE round trips.
-                val resolved = addresses.map { contactNameFor(it) ?: it }
-                if (resolved.zip(addresses).all { (a, b) -> a == b }) {
-                    // Names already match — skip the write entirely.
-                    return@Thread
-                }
-                val cases = ids.zip(resolved)
-                    .joinToString(" ") { (id, name) ->
-                        "WHEN $id THEN ${android.database.DatabaseUtils.sqlEscapeString(name)}"
-                    }
-                val idsList = ids.joinToString(",")
-                db.writableDatabase.execSQL(
-                    "UPDATE conversations SET name = CASE id $cases END WHERE id IN ($idsList)"
-                )
-                notifyChanged()
-            } catch (_: Exception) {
-            }
-        }.start()
-    }
-
 @Volatile private var syncRunning = false
 
     /** True until a sync that actually had SMS access completes. */
@@ -2222,7 +2148,7 @@ class Repository(private val context: Context) {
                             val cid = matchConversationId(database, address) ?: database.insertOrThrow(
                                 "conversations", null, ContentValues().apply {
                                     put("address", address)
-                                    put("name", contactNameFor(address) ?: address)
+                                    put("name", address)
                                 }
                             )
                             database.insertOrThrow("messages", null, ContentValues().apply {

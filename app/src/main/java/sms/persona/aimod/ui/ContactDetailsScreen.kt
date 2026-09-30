@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PersonAdd
@@ -40,6 +41,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,6 +92,7 @@ fun ContactDetailsScreen(
         .collectAsState(initial = true)
     var notifState by remember(notificationsEnabled) { mutableStateOf(notificationsEnabled) }
     var showBlockDialog by remember { mutableStateOf(false) }
+    var showRename by remember { mutableStateOf(false) }
     var numberIsBlocked by remember { mutableStateOf(false) }
     LaunchedEffect(address) { numberIsBlocked = vm.isNumberBlocked(address) }
 
@@ -123,15 +126,27 @@ fun ContactDetailsScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                Text(
-                    text = ContactDetails.title(name, address, display),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(Alignment.CenterVertically)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = ContactDetails.title(name, address, display),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .wrapContentHeight(Alignment.CenterVertically)
+                    )
+                    IconButton(onClick = { showRename = true }) {
+                        Icon(
+                            Icons.Rounded.Edit,
+                            contentDescription = stringResource(R.string.contact_rename)
+                        )
+                    }
+                }
                 ContactDetails.subtitle(name, address, display)?.let { number ->
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -324,6 +339,36 @@ fun ContactDetailsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showBlockDialog = false }) { Text(stringResource(R.string.common_cancel)) }
+            }
+        )
+    }
+
+    if (showRename) {
+        var draft by remember(name, address) {
+            mutableStateOf(if (ContactDetails.isKnown(name, address)) name else "")
+        }
+        AlertDialog(
+            onDismissRequest = { showRename = false },
+            title = { Text(stringResource(R.string.contact_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = { Text(stringResource(R.string.contact_rename_hint)) },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        vm.renameConversation(conversationId, draft.trim())
+                        showRename = false
+                    },
+                    enabled = draft.isNotBlank()
+                ) { Text(stringResource(R.string.settings_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRename = false }) { Text(stringResource(R.string.common_cancel)) }
             }
         )
     }

@@ -260,7 +260,7 @@ object NotificationHelper {
             0, "Mark as read", markReadIntent
         ).build()
 
-        val senderName = app.repository.contactNameFor(from) ?: from
+        val senderName = app.repository.storedNameFor(from) ?: from
         val title = if (privacyMode) context.getString(R.string.notif_title_private) else senderName
         val text = when {
             privacyMode -> context.getString(R.string.notif_body_private)

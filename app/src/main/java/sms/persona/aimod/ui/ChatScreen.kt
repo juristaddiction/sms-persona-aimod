@@ -1313,6 +1313,16 @@ private fun ChatTopBar(
                             WorkProfileBadge()
                         }
                     }
+                    convo?.let {
+                        if (it.name != it.address) {
+                            Text(
+                                BidiText.ltr(it.display),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
                     if (draftsEnabled && convo?.draft?.isNotBlank() == true && sendCountdown == 0) {
                         Text(
                             stringResource(R.string.chat_draft_prefix),
