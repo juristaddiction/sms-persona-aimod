@@ -71,6 +71,8 @@ class SettingsStore(context: Context) {
         const val FONT_POPPINS = "poppins"
         const val KEY_BLOCKED_KEYWORDS = "blocked_keywords"
         const val KEY_BACKUP_TREE_URI = "backup_tree_uri"
+        const val KEY_AUTO_BACKUP = "auto_backup_enabled"
+        const val KEY_AUTO_BACKUP_DAYS = "auto_backup_interval_days"
         const val KEY_A11Y_ENABLED = "a11y_enabled"
         const val KEY_A11Y_FONT_SCALE = "a11y_font_scale"
         const val KEY_A11Y_BOLD = "a11y_bold"
@@ -308,6 +310,16 @@ class SettingsStore(context: Context) {
     var backupTreeUri: String
         get() = prefs.getString(KEY_BACKUP_TREE_URI, "") ?: ""
         set(v) { prefs.edit().putString(KEY_BACKUP_TREE_URI, v).apply(); _revision.value++ }
+
+    /** Automatic local backups of the whole database (device-encrypted). */
+    var autoBackupEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_BACKUP, false)
+        set(v) { prefs.edit().putBoolean(KEY_AUTO_BACKUP, v).apply(); _revision.value++ }
+
+    /** Days between automatic backups (1 = daily, 7 = weekly). */
+    var autoBackupIntervalDays: Int
+        get() = prefs.getInt(KEY_AUTO_BACKUP_DAYS, 1)
+        set(v) { prefs.edit().putInt(KEY_AUTO_BACKUP_DAYS, v).apply(); _revision.value++ }
 
     /** True when [body] contains any blocked keyword (case-insensitive). */
     fun isKeywordBlocked(body: String): Boolean = KeywordFilter.isBlocked(body, blockedKeywords)

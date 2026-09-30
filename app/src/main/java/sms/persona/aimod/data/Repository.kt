@@ -1,7 +1,9 @@
 package sms.persona.aimod.data
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.os.Environment
@@ -1592,6 +1594,60 @@ class Repository(private val context: Context) {
         } catch (_: Exception) { false }
     }
 
+    /**
+     * Automatic backup: encrypts the whole database with the device Keystore
+     * key (no PIN needed) and stores it in Documents/Messages/auto. Because it
+     * copies the raw database file, messages, native names, group membership,
+     * colors, and settings are all included. Restorable on this device through
+     * the normal import flow.
+     */
+    fun autoBackupDatabase(context: Context): Boolean {
+        return try {
+            if (!BackupPolicy.isBackupAllowed(settings.privacyModeEnabled)) return false
+            val dbFile = context.getDatabasePath(DB_NAME)
+            if (!dbFile.exists()) return false
+            val resolver = context.contentResolver
+            val name = "messages_auto_${System.currentTimeMillis()}.enc"
+            val target = resolver.insert(
+                MediaStore.Files.getContentUri("external"),
+                ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOCUMENTS + "/Messages/auto")
+                }
+            ) ?: return false
+            resolver.openOutputStream(target)?.use { out ->
+                dbFile.inputStream().use { inp -> BackupCrypto.encrypt(inp, out) }
+            } ?: return false
+            pruneAutoBackups(context)
+            true
+        } catch (_: Exception) { false }
+    }
+
+    private fun pruneAutoBackups(context: Context, keep: Int = 5) {
+        try {
+            val collection = MediaStore.Files.getContentUri("external")
+            val rows = mutableListOf<Pair<String, Long>>()
+            context.contentResolver.query(
+                collection,
+                arrayOf(MediaStore.Files._ID, MediaStore.Files.DATE_ADDED),
+                "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?",
+                arrayOf("messages_auto_%.enc"),
+                "${MediaStore.Files.DATE_ADDED} DESC"
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.Files._ID)
+                val dateCol = c.getColumnIndexOrThrow(MediaStore.Files.DATE_ADDED)
+                while (c.moveToNext()) {
+                    val uri = ContentUris.withAppendedId(collection, c.getLong(idCol)).toString()
+                    rows += uri to c.getLong(dateCol)
+                }
+            }
+            for (uri in selectBackupsToPrune(rows, keep)) {
+                context.contentResolver.delete(Uri.parse(uri), null, null)
+            }
+        } catch (_: Exception) { }
+    }
+
     sealed interface ImportResult {
         /** [merged] is the number of messages added, non-null only for a merge import. */
         data class Success(val merged: Int? = null) : ImportResult
@@ -2653,3 +2709,10 @@ class Repository(private val context: Context) {
             }.filter { it.second > 0 }.toMap()
     }
 }
+
+/** Pure retention rule for automatic backups: keep the [keep] newest, return
+ *  the rest (as URI strings) for deletion. */
+internal fun selectBackupsToPrune(backups: List<Pair<String, Long>>, keep: Int): List<String> =
+    backups.sortedByDescending { it.second }
+        .drop(keep.coerceAtLeast(0))
+        .map { it.first }

@@ -112,6 +112,21 @@ object BackupCrypto {
         return kg.generateKey()
     }
 
+    /** Device-bound encrypt for automatic backups (same shape as the legacy
+     *  format: `iv | AES-256-GCM ciphertext`). Restorable on this device via
+     *  [decrypt]; not portable to a new device the way PIN backups are. */
+    fun encrypt(input: InputStream, output: OutputStream) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+        output.write(cipher.iv)
+        val buf = ByteArray(8192)
+        var read: Int
+        while (input.read(buf).also { read = it } != -1) {
+            cipher.update(buf, 0, read)?.let { output.write(it) }
+        }
+        cipher.doFinal()?.let { output.write(it) }
+    }
+
     /** Legacy Keystore-bound decrypt for pre-PIN backups. */
     fun decrypt(input: InputStream, output: OutputStream): Boolean {
         return try {

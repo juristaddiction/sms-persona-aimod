@@ -119,4 +119,9 @@
     <string name="settings_save">Save</string>
     <string name="settings_import">Import</string>
     <string name="advanced_turn_on_links">Turn on "Highlight links" first</string>
+    <string name="settings_auto_backup_title">Automatic backups</string>
+    <string name="settings_auto_backup_subtitle">Encrypted backup of everything, kept on this device</string>
+    <string name="settings_auto_backup_freq_title">Backup frequency</string>
+    <string name="settings_auto_backup_daily">Daily</string>
+    <string name="settings_auto_backup_weekly">Weekly</string>
 </resources>

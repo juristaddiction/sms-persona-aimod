@@ -8,6 +8,7 @@ import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import sms.persona.aimod.AutoBackupScheduler
 import sms.persona.aimod.data.ChatExport
 import sms.persona.aimod.data.DownloadsStore
 import androidx.activity.compose.BackHandler
@@ -107,6 +108,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showExportAllDialog by remember { mutableStateOf(false) }
+    var showAutoBackupFreqDialog by remember { mutableStateOf(false) }
 
     val revision by vm.settings.revision.collectAsState()
 
@@ -440,6 +442,26 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.export_all_subtitle),
                     onClick = { showExportAllDialog = true }
                 )
+                SettingsRow(
+                    title = stringResource(R.string.settings_auto_backup_title),
+                    subtitle = stringResource(R.string.settings_auto_backup_subtitle),
+                    checked = vm.settings.autoBackupEnabled,
+                    onChecked = { enabled ->
+                        vm.settings.autoBackupEnabled = enabled
+                        if (enabled) AutoBackupScheduler.schedule(context)
+                        else AutoBackupScheduler.cancel(context)
+                    }
+                )
+                if (vm.settings.autoBackupEnabled) {
+                    SettingsRow(
+                        title = stringResource(R.string.settings_auto_backup_freq_title),
+                        subtitle = if (vm.settings.autoBackupIntervalDays == 7)
+                            stringResource(R.string.settings_auto_backup_weekly)
+                        else
+                            stringResource(R.string.settings_auto_backup_daily),
+                        onClick = { showAutoBackupFreqDialog = true }
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -706,6 +728,33 @@ fun SettingsScreen(
                             Toast.LENGTH_SHORT
                         ).show()
                     }
+                }
+            }
+        )
+    }
+
+    if (showAutoBackupFreqDialog) {
+        AlertDialog(
+            onDismissRequest = { showAutoBackupFreqDialog = false },
+            title = { Text(stringResource(R.string.settings_auto_backup_freq_title)) },
+            text = {
+                ImportRadioGroup(
+                    options = listOf(
+                        stringResource(R.string.settings_auto_backup_daily) to "",
+                        stringResource(R.string.settings_auto_backup_weekly) to ""
+                    ),
+                    selectedIndex = if (vm.settings.autoBackupIntervalDays == 7) 1 else 0,
+                    onSelect = { index ->
+                        vm.settings.autoBackupIntervalDays = if (index == 1) 7 else 1
+                        AutoBackupScheduler.schedule(context)
+                        showAutoBackupFreqDialog = false
+                    }
+                )
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAutoBackupFreqDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
