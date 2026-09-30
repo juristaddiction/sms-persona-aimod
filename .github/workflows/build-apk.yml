@@ -21,10 +21,13 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Restore release keystore
-        if: ${{ secrets.RELEASE_KEYSTORE_B64 != '' }}
         run: |
-          echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release.keystore
-          ls -la release.keystore
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_B64 }}" ]; then
+            echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release.keystore
+            ls -la release.keystore
+          else
+            echo "No RELEASE_KEYSTORE_B64 secret; will build debug APK."
+          fi
 
       - name: Build APK
         env:
