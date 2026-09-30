@@ -504,6 +504,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun renameConversation(id: Long, name: String) =
         scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.renameConversationSuspend(id, name) }
 
+    val conversationGroups: kotlinx.coroutines.flow.Flow<List<sms.persona.aimod.data.ConversationGroup>> =
+        repo.conversationGroups()
+
+    fun groupsForConversation(id: Long): kotlinx.coroutines.flow.Flow<Set<Long>> =
+        repo.groupsForConversationFlow(id)
+
+    fun groupMemberIds(groupId: Long): kotlinx.coroutines.flow.Flow<Set<Long>> =
+        repo.groupMemberIdsFlow(groupId)
+
+    fun createGroup(name: String) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.createGroup(name) }
+
+    fun renameGroup(id: Long, name: String) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.renameGroupSuspend(id, name) }
+
+    fun deleteGroup(id: Long) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) { repo.deleteGroupSuspend(id) }
+
+    fun setConversationGroups(id: Long, groupIds: Set<Long>) =
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            repo.setConversationGroupsSuspend(id, groupIds)
+        }
+
     fun unarchiveConversation(id: Long) = scope.launch { repo.setArchivedSuspend(id, false) }
 
     fun saveDraft(conversationId: Long, draft: String) {
@@ -864,7 +887,7 @@ class MainActivity : FragmentActivity() {
                     }
                 }
 
-                val routeDepth = mapOf("list" to 0, "opening" to 0, "chat" to 1, "details" to 2, "new" to 1, "settings" to 1, "trash" to 2, "spam" to 2, "advanced" to 2, "accessibility" to 3)
+                val routeDepth = mapOf("list" to 0, "opening" to 0, "chat" to 1, "details" to 2, "new" to 1, "settings" to 1, "trash" to 2, "spam" to 2, "advanced" to 2, "accessibility" to 3, "groups" to 2)
                 val reduceMotion = vm.a11y.reduceMotionEnabled
                 val navSlide = motionTween<IntOffset>(reduceMotion, Motion.DURATION_MEDIUM2)
                 val navFade = motionTween<Float>(reduceMotion, Motion.DURATION_SHORT4)
@@ -927,6 +950,7 @@ class MainActivity : FragmentActivity() {
                                         onOpenTrash = { navRoute = "trash" },
                                         onOpenAdvanced = { navRoute = "advanced" },
                                         onOpenSpamBlocked = { navRoute = "spam" },
+                                        onOpenGroups = { navRoute = "groups" },
                                         scrollState = settingsScroll
                                     )
                                     "advanced" -> AdvancedSettingsScreen(
@@ -939,6 +963,7 @@ class MainActivity : FragmentActivity() {
                                         onBack = { navRoute = "advanced" }
                                     )
                                     "trash" -> TrashScreen(vm = vm, onBack = { navRoute = "settings" })
+                                    "groups" -> GroupsScreen(vm = vm, onBack = { navRoute = "settings" })
                                     "spam" -> SpamBlockedScreen(
                                         vm = vm,
                                         onBack = { navRoute = "settings" },

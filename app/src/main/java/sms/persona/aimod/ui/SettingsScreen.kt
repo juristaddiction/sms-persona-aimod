@@ -93,6 +93,7 @@ fun SettingsScreen(
     onOpenTrash: () -> Unit = {},
     onOpenAdvanced: () -> Unit = {},
     onOpenSpamBlocked: () -> Unit = {},
+    onOpenGroups: () -> Unit = {},
     scrollState: ScrollState = rememberScrollState()
 ) {
     BackHandler(onBack = onBack)
@@ -400,6 +401,11 @@ fun SettingsScreen(
                     title = stringResource(R.string.conversations_spam_blocked),
                     subtitle = stringResource(R.string.settings_spam_blocked_subtitle),
                     onClick = onOpenSpamBlocked
+                )
+                SettingsRow(
+                    title = stringResource(R.string.groups_title),
+                    subtitle = stringResource(R.string.groups_subtitle),
+                    onClick = onOpenGroups
                 )
                 SettingsRow(
                     title = stringResource(R.string.settings_backup_title),

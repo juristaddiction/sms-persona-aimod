@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="groups_all">All</string>
+    <string name="groups_title">Conversation groups</string>
+    <string name="groups_subtitle">Organize conversations into groups</string>
+    <string name="groups_empty">No groups yet</string>
+    <string name="groups_empty_hint">No groups yet. Create one in Settings to organize your conversations.</string>
+    <string name="groups_create">New group</string>
+    <string name="groups_create_hint">Group name</string>
+    <string name="groups_rename">Rename group</string>
+    <string name="groups_delete">Delete group</string>
+    <string name="groups_delete_confirm">Delete the group "%1$s"? Conversations stay where they are.</string>
+    <string name="groups_assign">Groups</string>
+    <string name="groups_assign_title">Add to groups</string>
+</resources>

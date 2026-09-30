@@ -25,7 +25,7 @@ private const val DB_NAME = "messages.db"
 enum class BackupFormat { PIN, LEGACY }
 enum class ImportMode { REPLACE, MERGE }
 
-private const val DB_VERSION = 21
+private const val DB_VERSION = 22
 private const val PREFS_NAME = "messages_schema"
 private const val PREF_HEAL_APPLIED = "heal_v1_applied"
 
@@ -107,6 +107,19 @@ class Db(context: Context) :
                 comparable_destination TEXT NOT NULL,
                 country_code TEXT NOT NULL DEFAULT '',
                 sub_id INTEGER NOT NULL DEFAULT -1)"""
+        )
+        db.execSQL(
+            """CREATE TABLE conversation_groups(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                color INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 0)"""
+        )
+        db.execSQL(
+            """CREATE TABLE conversation_group_members(
+                conversation_id INTEGER NOT NULL,
+                group_id INTEGER NOT NULL,
+                PRIMARY KEY(conversation_id, group_id))"""
         )
     }
 
@@ -210,6 +223,21 @@ class Db(context: Context) :
             // sender gets a full window from the upgrade rather than being
             // purged the moment it is first seen.
             db.execSQL("UPDATE conversations SET blocked_at=timestamp WHERE blocked=1 AND blocked_at=0")
+        }
+        if (oldVersion < 22) {
+            db.execSQL(
+                """CREATE TABLE conversation_groups(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    color INTEGER NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0)"""
+            )
+            db.execSQL(
+                """CREATE TABLE conversation_group_members(
+                    conversation_id INTEGER NOT NULL,
+                    group_id INTEGER NOT NULL,
+                    PRIMARY KEY(conversation_id, group_id))"""
+            )
         }
     }
 
@@ -979,6 +1007,92 @@ class Repository(private val context: Context) {
             "SELECT name FROM conversations WHERE address=?",
             arrayOf(target)
         ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    }
+
+    fun conversationGroups(): Flow<List<ConversationGroup>> = observe {
+        val out = mutableListOf<ConversationGroup>()
+        db.readableDatabase.rawQuery(
+            "SELECT id,name,color,sort_order FROM conversation_groups ORDER BY sort_order,name",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out.add(ConversationGroup(c.getLong(0), c.getString(1), c.getInt(2), c.getInt(3)))
+            }
+        }
+        out
+    }
+
+    fun groupsForConversationFlow(conversationId: Long): Flow<Set<Long>> = observe {
+        val out = mutableSetOf<Long>()
+        db.readableDatabase.rawQuery(
+            "SELECT group_id FROM conversation_group_members WHERE conversation_id=?",
+            arrayOf(conversationId)
+        ).use { c -> while (c.moveToNext()) out.add(c.getLong(0)) }
+        out
+    }
+
+    fun groupMemberIdsFlow(groupId: Long): Flow<Set<Long>> = observe {
+        val out = mutableSetOf<Long>()
+        db.readableDatabase.rawQuery(
+            "SELECT conversation_id FROM conversation_group_members WHERE group_id=?",
+            arrayOf(groupId)
+        ).use { c -> while (c.moveToNext()) out.add(c.getLong(0)) }
+        out
+    }
+
+    fun createGroup(name: String): Long {
+        val order = db.readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM conversation_groups", null
+        ).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        val id = db.writableDatabase.insert(
+            "conversation_groups", null, ContentValues().apply {
+                put("name", name)
+                put("sort_order", order)
+            }
+        )
+        notifyChanged()
+        return id
+    }
+
+    fun renameGroupSuspend(groupId: Long, name: String) {
+        db.writableDatabase.execSQL(
+            "UPDATE conversation_groups SET name=? WHERE id=?",
+            arrayOf(name, groupId)
+        )
+        notifyChanged()
+    }
+
+    fun deleteGroupSuspend(groupId: Long) {
+        db.writableDatabase.delete(
+            "conversation_group_members", "group_id=?", arrayOf(groupId.toString())
+        )
+        db.writableDatabase.delete(
+            "conversation_groups", "id=?", arrayOf(groupId.toString())
+        )
+        notifyChanged()
+    }
+
+    fun setConversationGroupsSuspend(conversationId: Long, groupIds: Set<Long>) {
+        val wdb = db.writableDatabase
+        wdb.beginTransaction()
+        try {
+            wdb.delete(
+                "conversation_group_members", "conversation_id=?",
+                arrayOf(conversationId.toString())
+            )
+            for (gid in groupIds) {
+                wdb.insert(
+                    "conversation_group_members", null, ContentValues().apply {
+                        put("conversation_id", conversationId)
+                        put("group_id", gid)
+                    }
+                )
+            }
+            wdb.setTransactionSuccessful()
+        } finally {
+            wdb.endTransaction()
+        }
+        notifyChanged()
     }
 
     fun markAllReadSuspend() {

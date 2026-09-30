@@ -1,5 +1,12 @@
 package sms.persona.aimod.data
 
+data class ConversationGroup(
+    val id: Long,
+    val name: String,
+    val color: Int = 0,
+    val sortOrder: Int = 0
+)
+
 data class Conversation(
     val id: Long,
     val address: String,

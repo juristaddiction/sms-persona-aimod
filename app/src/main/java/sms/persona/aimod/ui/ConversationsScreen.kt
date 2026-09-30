@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,9 +44,13 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -119,6 +125,21 @@ import sms.persona.aimod.data.Conversation
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
+internal fun applyArchiveAndGroupFilter(
+    conversations: List<Conversation>,
+    showArchived: Boolean,
+    groupFilter: Long?,
+    groupMemberIds: Set<Long>
+): List<Conversation> =
+    conversations.filter { convo ->
+        if (convo.blocked) false
+        else if (showArchived) convo.archived
+        else !convo.archived
+    }.let { list ->
+        if (groupFilter == null || showArchived) list
+        else list.filter { it.id in groupMemberIds }
+    }
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationsScreen(
@@ -148,6 +169,12 @@ fun ConversationsScreen(
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var showArchived by remember { mutableStateOf(false) }
+    val groups by remember(vm) { vm.conversationGroups }.collectAsState(initial = emptyList())
+    var groupFilter by remember { mutableStateOf<Long?>(null) }
+    val groupMemberIds by remember(vm, groupFilter) {
+        groupFilter?.let { vm.groupMemberIds(it) }
+            ?: kotlinx.coroutines.flow.flowOf(emptySet<Long>())
+    }.collectAsState(initial = emptySet())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -193,6 +220,7 @@ fun ConversationsScreen(
     // skeleton stays while importing; denied SMS access ends it (panel takes over)
     val loaded = minSkeletonShown && (syncDone || !readSmsAllowed)
     var sheetConvoId by remember { mutableLongStateOf(-1L) }
+    var showGroupPicker by remember { mutableStateOf(false) }
     val sheetConvo = conversations.find { it.id == sheetConvoId }
     var permanentDeleteTarget by remember { mutableStateOf<Conversation?>(null) }
     // Recompute row-level settings whenever any setting changes (SettingsStore is a
@@ -283,12 +311,8 @@ fun ConversationsScreen(
     val showArchiving = vm.settings.archivingEnabled
     val unreadAtTop = vm.settings.unreadAtTopEnabled
 
-    val displayed = remember(conversations, showArchived, query, unreadAtTop, rowSettings.hideLinks) {
-        conversations.filter { convo ->
-            if (convo.blocked) false
-            else if (showArchived) convo.archived
-            else !convo.archived
-        }.let { list ->
+    val displayed = remember(conversations, showArchived, query, unreadAtTop, rowSettings.hideLinks, groupFilter, groupMemberIds) {
+        applyArchiveAndGroupFilter(conversations, showArchived, groupFilter, groupMemberIds).let { list ->
             if (query.isBlank()) list
             else list.filter {
                 val snippet = if (rowSettings.hideLinks) hideUrls(it.snippet) else it.snippet
@@ -464,6 +488,28 @@ fun ConversationsScreen(
                     }
                 }
             } else {
+                if (!showArchived && groups.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item(key = "all") {
+                            FilterChip(
+                                selected = groupFilter == null,
+                                onClick = { groupFilter = null },
+                                label = { Text(stringResource(R.string.groups_all)) }
+                            )
+                        }
+                        items(groups, key = { it.id }) { group ->
+                            FilterChip(
+                                selected = groupFilter == group.id,
+                                onClick = { groupFilter = if (groupFilter == group.id) null else group.id },
+                                label = { Text(group.name) }
+                            )
+                        }
+                    }
+                }
                 CompositionLocalProvider(LocalNowTick provides nowTick) {
                     LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
                         items(displayed, key = { it.id }) { convo ->
@@ -535,6 +581,11 @@ fun ConversationsScreen(
                             MaterialTheme.colorScheme.primary
                         ) { sheetConvoId = -1L; vm.togglePin(sheetConvo.id) }
                     }
+                    SheetActionRow(
+                        Icons.Rounded.Folder,
+                        stringResource(R.string.groups_assign),
+                        MaterialTheme.colorScheme.primary
+                    ) { showGroupPicker = true }
                     if (rowSettings.archivingEnabled) {
                         SheetActionRow(Icons.Rounded.Archive, stringResource(R.string.sheet_archive), MaterialTheme.colorScheme.primary) {
                             sheetConvoId = -1L; archiveWithUndo(sheetConvo)
@@ -551,6 +602,63 @@ fun ConversationsScreen(
                 }
             }
         }
+    }
+
+    if (showGroupPicker && sheetConvo != null) {
+        val memberGroups by remember(vm, sheetConvo.id) {
+            vm.groupsForConversation(sheetConvo.id)
+        }.collectAsState(initial = emptySet<Long>())
+        var checked by remember(memberGroups) { mutableStateOf(memberGroups) }
+        AlertDialog(
+            onDismissRequest = { showGroupPicker = false },
+            title = { Text(stringResource(R.string.groups_assign_title)) },
+            text = {
+                Column {
+                    if (groups.isEmpty()) {
+                        Text(
+                            stringResource(R.string.groups_empty_hint),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        groups.forEach { group ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        checked =
+                                            if (group.id in checked) checked - group.id
+                                            else checked + group.id
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = group.id in checked,
+                                    onCheckedChange = null
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    group.name,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.setConversationGroups(sheetConvo.id, checked)
+                    showGroupPicker = false
+                    sheetConvoId = -1L
+                }) { Text(stringResource(R.string.settings_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGroupPicker = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     permanentDeleteTarget?.let { convo ->
