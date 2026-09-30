@@ -21,20 +21,25 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Restore release keystore
+        if: ${{ secrets.RELEASE_KEYSTORE_B64 != '' }}
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release.keystore
           ls -la release.keystore
 
-      - name: Build release APK
+      - name: Build APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_B64 }}" ]; then
+            ./gradlew assembleRelease --stacktrace
+          else
+            ./gradlew assembleDebug --stacktrace
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: sms-persona-aimod-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/*.apk
